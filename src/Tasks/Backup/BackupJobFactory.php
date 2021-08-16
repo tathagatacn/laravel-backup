@@ -20,14 +20,15 @@ class BackupJobFactory
     {
         return FileSelection::create($sourceFiles['include'])
             ->excludeFilesFrom($sourceFiles['exclude'])
-            ->shouldFollowLinks(isset($sourceFiles['follow_links']) && $sourceFiles['follow_links']);
+            ->shouldFollowLinks(isset($sourceFiles['follow_links']) && $sourceFiles['follow_links'])
+            ->shouldIgnoreUnreadableDirs(Arr::get($sourceFiles, 'ignore_unreadable_directories', false));
     }
 
     protected static function createDbDumpers(array $dbConnectionNames): Collection
     {
-        return collect($dbConnectionNames)->mapWithKeys(function (string $dbConnectionName) {
-            return [$dbConnectionName=>DbDumperFactory::createFromConnection($dbConnectionName)];
-        });
+        return collect($dbConnectionNames)->mapWithKeys(
+            fn (string $dbConnectionName) => [$dbConnectionName => DbDumperFactory::createFromConnection($dbConnectionName)]
+        );
     }
 
     protected static function getSourceDatabaseConnections(array $sourceConfig): array

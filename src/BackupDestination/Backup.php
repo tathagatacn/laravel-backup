@@ -4,29 +4,22 @@ namespace Spatie\Backup\BackupDestination;
 
 use Carbon\Carbon;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use InvalidArgumentException;
+use Spatie\Backup\Exceptions\InvalidBackupFile;
+use Spatie\Backup\Tasks\Backup\BackupJob;
 
 class Backup
 {
-    /** @var \Illuminate\Contracts\Filesystem\Filesystem */
-    protected $disk;
+    protected bool $exists = true;
 
-    /** @var string */
-    protected $path;
+    protected ?Carbon $date = null;
 
-    /** @var bool */
-    protected $exists;
+    protected ?int $size = null;
 
-    /** @var Carbon */
-    protected $date;
-
-    /** @var int */
-    protected $size;
-
-    public function __construct(Filesystem $disk, string $path)
-    {
-        $this->disk = $disk;
-
-        $this->path = $path;
+    public function __construct(
+        protected Filesystem $disk,
+        protected string $path,
+    ) {
     }
 
     public function disk(): Filesystem
@@ -51,16 +44,19 @@ class Backup
     public function date(): Carbon
     {
         if ($this->date === null) {
-            $this->date = Carbon::createFromTimestamp($this->disk->lastModified($this->path));
+            try {
+                $basename = basename($this->path);
+
+                $this->date = Carbon::createFromFormat(BackupJob::FILENAME_FORMAT, $basename);
+            } catch (InvalidArgumentException) {
+                $this->date = Carbon::createFromTimestamp($this->disk->lastModified($this->path));
+            }
         }
 
         return $this->date;
     }
 
-    /**
-     * Get the size in bytes.
-     */
-    public function size(): float
+    public function sizeInBytes(): float
     {
         if ($this->size === null) {
             if (! $this->exists()) {
@@ -75,14 +71,21 @@ class Backup
 
     public function stream()
     {
-        return $this->disk->readStream($this->path);
+        return throw_unless(
+            $this->disk->readStream($this->path),
+            InvalidBackupFile::readError($this)
+        );
     }
 
-    public function delete()
+    public function delete(): void
     {
-        $this->exists = null;
+        if (! $this->disk->delete($this->path)) {
+            consoleOutput()->error("Failed to delete backup `{$this->path}`.");
 
-        $this->disk->delete($this->path);
+            return;
+        }
+
+        $this->exists = false;
 
         consoleOutput()->info("Deleted backup `{$this->path}`.");
     }

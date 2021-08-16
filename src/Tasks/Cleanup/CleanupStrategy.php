@@ -4,16 +4,28 @@ namespace Spatie\Backup\Tasks\Cleanup;
 
 use Illuminate\Contracts\Config\Repository;
 use Spatie\Backup\BackupDestination\BackupCollection;
+use Spatie\Backup\BackupDestination\BackupDestination;
 
 abstract class CleanupStrategy
 {
-    /** @var \Illuminate\Contracts\Config\Repository */
-    protected $config;
+    protected BackupDestination $backupDestination;
 
-    public function __construct(Repository $config)
-    {
-        $this->config = $config;
+    public function __construct(
+        protected Repository $config,
+    ) {
     }
 
     abstract public function deleteOldBackups(BackupCollection $backups);
+
+    public function setBackupDestination(BackupDestination $backupDestination): self
+    {
+        $this->backupDestination = $backupDestination;
+
+        return $this;
+    }
+
+    public function backupDestination(): BackupDestination
+    {
+        return $this->backupDestination;
+    }
 }

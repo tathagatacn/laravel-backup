@@ -9,14 +9,13 @@ use Illuminate\Support\Facades\Storage;
 use Spatie\Backup\Events\BackupHasFailed;
 use Spatie\Backup\Tests\TestCase;
 use Spatie\DbDumper\Compressors\GzipCompressor;
+use ZipArchive;
 
 class BackupCommandTest extends TestCase
 {
-    /** @var \Carbon\Carbon */
-    protected $date;
+    protected Carbon $date;
 
-    /** @var string */
-    protected $expectedZipPath;
+    protected string $expectedZipPath;
 
     public function setUp(): void
     {
@@ -89,6 +88,46 @@ class BackupCommandTest extends TestCase
         $this->artisan('backup:run --only-files');
 
         $this->assertFileDoesntExistsInZip('local', $this->expectedZipPath, 'testing-file.txt');
+    }
+
+    /** @test */
+    public function it_can_backup_using_relative_path()
+    {
+        config()->set('backup.backup.source.files.include', [$this->getStubDirectory()]);
+        config()->set('backup.backup.source.files.exclude', [$this->getStubDirectory('.dot'), $this->getStubDirectory('file'), $this->getStubDirectory('file1.txt.txt')]);
+        config()->set('backup.backup.source.files.relative_path', $this->getStubDirectory());
+
+        $testFiles = [
+            '.dotfile',
+            'archive.zip',
+            '1Mb.file',
+            'directory1/',
+            'directory1/directory1/',
+            'directory1/directory1/file1.txt',
+            'directory1/directory1/file2.txt',
+            'directory1/file1.txt',
+            'directory1/file2.txt',
+            'directory2/',
+            'directory2/directory1/',
+            'directory2/directory1/file1.txt',
+            'file1.txt',
+            'file2.txt',
+            'file3.txt',
+        ];
+
+        $this->artisan('backup:run --only-files')->assertExitCode(0);
+
+        $zipFiles = [];
+        $zip = new ZipArchive();
+        $zip->open(Storage::disk('local')->path($this->expectedZipPath));
+        foreach (range(0, $zip->numFiles - 1) as $i) {
+            $zipFiles[] = $zip->statIndex($i)['name'];
+        }
+        $zip->close();
+        sort($testFiles);
+        sort($zipFiles);
+
+        $this->assertSame($testFiles, $zipFiles);
     }
 
     /** @test */
@@ -211,7 +250,7 @@ class BackupCommandTest extends TestCase
     /** @test */
     public function it_will_fail_when_trying_to_backup_to_an_non_existing_diskname()
     {
-        $resultCode = Artisan::call('backup:run --only-to-disk=non-exisiting-disk');
+        $resultCode = Artisan::call('backup:run --only-to-disk=non-existing-disk');
 
         $this->assertEquals(1, $resultCode);
 
@@ -246,6 +285,33 @@ class BackupCommandTest extends TestCase
 
         $this->assertFileExistsInZip('secondLocal', $this->expectedZipPath, 'sqlite-db1-database.sql');
         $this->assertFileExistsInZip('secondLocal', $this->expectedZipPath, 'sqlite-db2-database.sql');
+
+        /*
+         * Close the database connection to unlock the sqlite file for deletion.
+         * This prevents the errors from other tests trying to delete and recreate the folder.
+         */
+        $this->app['db']->disconnect();
+    }
+
+    /** @test */
+    public function it_renames_database_dump_file_extension_when_specified()
+    {
+        config()->set('backup.backup.source.databases', ['db1', 'db2']);
+        config()->set('backup.backup.database_dump_file_extension', 'backup');
+
+        $this->setUpDatabase($this->app);
+
+        $this->artisan('backup:run --only-db')->assertExitCode(0);
+
+        $this->assertFileExistsInZip('local', $this->expectedZipPath, 'sqlite-db1-database.backup');
+        $this->assertFileExistsInZip('local', $this->expectedZipPath, 'sqlite-db2-database.backup');
+        $this->assertFileDoesntExistsInZip('local', $this->expectedZipPath, 'sqlite-db1-database.sql');
+        $this->assertFileDoesntExistsInZip('local', $this->expectedZipPath, 'sqlite-db2-database.sql');
+
+        $this->assertFileExistsInZip('secondLocal', $this->expectedZipPath, 'sqlite-db1-database.backup');
+        $this->assertFileExistsInZip('secondLocal', $this->expectedZipPath, 'sqlite-db2-database.backup');
+        $this->assertFileDoesntExistsInZip('secondLocal', $this->expectedZipPath, 'sqlite-db1-database.sql');
+        $this->assertFileDoesntExistsInZip('secondLocal', $this->expectedZipPath, 'sqlite-db2-database.sql');
 
         /*
          * Close the database connection to unlock the sqlite file for deletion.

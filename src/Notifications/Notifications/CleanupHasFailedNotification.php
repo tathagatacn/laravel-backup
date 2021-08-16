@@ -5,21 +5,24 @@ namespace Spatie\Backup\Notifications\Notifications;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Messages\SlackAttachment;
 use Illuminate\Notifications\Messages\SlackMessage;
-use Spatie\Backup\Events\BackupHasFailed as BackupHasFailedEvent;
+use Spatie\Backup\Events\CleanupHasFailed;
 use Spatie\Backup\Notifications\BaseNotification;
+use Spatie\Backup\Notifications\Channels\Discord\DiscordMessage;
 
-class BackupHasFailed extends BaseNotification
+class CleanupHasFailedNotification extends BaseNotification
 {
-    /** @var \Spatie\Backup\Events\BackupHasFailed */
-    protected $event;
+    public function __construct(
+        public CleanupHasFailed $event,
+    ) {
+    }
 
     public function toMail(): MailMessage
     {
         $mailMessage = (new MailMessage)
             ->error()
             ->from(config('backup.notifications.mail.from.address', config('mail.from.address')), config('backup.notifications.mail.from.name', config('mail.from.name')))
-            ->subject(trans('backup::notifications.backup_failed_subject', ['application_name' => $this->applicationName()]))
-            ->line(trans('backup::notifications.backup_failed_body', ['application_name' => $this->applicationName()]))
+            ->subject(trans('backup::notifications.cleanup_failed_subject', ['application_name' => $this->applicationName()]))
+            ->line(trans('backup::notifications.cleanup_failed_body', ['application_name' => $this->applicationName()]))
             ->line(trans('backup::notifications.exception_message', ['message' => $this->event->exception->getMessage()]))
             ->line(trans('backup::notifications.exception_trace', ['trace' => $this->event->exception->getTraceAsString()]));
 
@@ -36,7 +39,7 @@ class BackupHasFailed extends BaseNotification
             ->error()
             ->from(config('backup.notifications.slack.username'), config('backup.notifications.slack.icon'))
             ->to(config('backup.notifications.slack.channel'))
-            ->content(trans('backup::notifications.backup_failed_subject', ['application_name' => $this->applicationName()]))
+            ->content(trans('backup::notifications.cleanup_failed_subject', ['application_name' => $this->applicationName()]))
             ->attachment(function (SlackAttachment $attachment) {
                 $attachment
                     ->title(trans('backup::notifications.exception_message_title'))
@@ -44,7 +47,7 @@ class BackupHasFailed extends BaseNotification
             })
             ->attachment(function (SlackAttachment $attachment) {
                 $attachment
-                    ->title(trans('backup::notifications.exception_trace_title'))
+                    ->title(trans('backup::notifications.exception_message_trace'))
                     ->content($this->event->exception->getTraceAsString());
             })
             ->attachment(function (SlackAttachment $attachment) {
@@ -52,10 +55,15 @@ class BackupHasFailed extends BaseNotification
             });
     }
 
-    public function setEvent(BackupHasFailedEvent $event)
+    public function toDiscord(): DiscordMessage
     {
-        $this->event = $event;
-
-        return $this;
+        return (new DiscordMessage())
+            ->error()
+            ->from(config('backup.notifications.discord.username'), config('backup.notifications.discord.avatar_url'))
+            ->title(
+                trans('backup::notifications.cleanup_failed_subject', ['application_name' => $this->applicationName()])
+            )->fields([
+                trans('backup::notifications.exception_message_title') => $this->event->exception->getMessage(),
+            ]);
     }
 }

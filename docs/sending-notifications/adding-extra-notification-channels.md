@@ -27,7 +27,7 @@ Let say you want to be notified via Pusher push notifications when a backup fail
 ```php
 namespace App\Notifications;
 
-use Spatie\Backup\Notifications\Notifications\BackupHasFailed as BaseNotification;
+use Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification as BaseNotification;
 use NotificationChannels\PusherPushNotifications\Message;
 
 class BackupHasFailed extends BaseNotification
@@ -38,7 +38,7 @@ class BackupHasFailed extends BaseNotification
             ->iOS()
             ->badge(1)
             ->sound('fail')
-            ->body("The backup of {$this->getApplicationName()} to disk {$this->getDiskName()} has failed");
+            ->body("The backup of {$this->applicationName()} to disk {$this->diskName()} has failed");
     }
 }
 ```

@@ -7,23 +7,19 @@ use Exception;
 use Illuminate\Contracts\Filesystem\Factory;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Spatie\Backup\Exceptions\InvalidBackupDestination;
+use Spatie\Backup\Exceptions\InvalidBackupFile;
 
 class BackupDestination
 {
-    /** @var \Illuminate\Contracts\Filesystem\Filesystem */
-    protected $disk;
+    protected ?Filesystem $disk;
 
-    /** @var string */
-    protected $diskName;
+    protected string $diskName;
 
-    /** @var string */
-    protected $backupName;
+    protected string $backupName;
 
-    /** @var Exception */
-    public $connectionError;
+    public ?Exception $connectionError = null;
 
-    /** @var null|\Spatie\Backup\BackupDestination\BackupCollection */
-    protected $backupCollectionCache = null;
+    protected ?BackupCollection $backupCollectionCache = null;
 
     public function __construct(Filesystem $disk = null, string $backupName, string $diskName)
     {
@@ -31,7 +27,7 @@ class BackupDestination
 
         $this->diskName = $diskName;
 
-        $this->backupName = preg_replace('/[^a-zA-Z0-9.]/', '-', $backupName);
+        $this->backupName = (string)preg_replace('/[^a-zA-Z0-9.]/', '-', $backupName);
     }
 
     public function disk(): Filesystem
@@ -50,7 +46,7 @@ class BackupDestination
             return 'unknown';
         }
 
-        $adapterClass = get_class($this->disk->getDriver()->getAdapter());
+        $adapterClass = $this->disk->getDriver()->getAdapter()::class;
 
         $filesystemType = last(explode('\\', $adapterClass));
 
@@ -72,8 +68,12 @@ class BackupDestination
         }
     }
 
-    public function write(string $file)
+    public function write(string $file): void
     {
+        if (! is_null($this->connectionError)) {
+            throw InvalidBackupDestination::connectionError($this->diskName);
+        }
+
         if (is_null($this->disk)) {
             throw InvalidBackupDestination::diskNotSet($this->backupName);
         }
@@ -82,7 +82,7 @@ class BackupDestination
 
         $handle = fopen($file, 'r+');
 
-        $this->disk->getDriver()->writeStream(
+        $hasWritten = $this->disk->getDriver()->writeStream(
             $destination,
             $handle,
             $this->getDiskOptions()
@@ -90,6 +90,10 @@ class BackupDestination
 
         if (is_resource($handle)) {
             fclose($handle);
+        }
+
+        if (! $hasWritten) {
+            throw InvalidBackupFile::writeError($this->backupName());
         }
     }
 
@@ -104,7 +108,16 @@ class BackupDestination
             return $this->backupCollectionCache;
         }
 
-        $files = is_null($this->disk) ? [] : $this->disk->allFiles($this->backupName);
+        $files = [];
+
+        if (! is_null($this->disk)) {
+            // $this->disk->allFiles() may fail when $this->disk is not reachable
+            // in that case we still want to send the notification
+            try {
+                $files = $this->disk->allFiles($this->backupName);
+            } catch (Exception) {
+            }
+        }
 
         return $this->backupCollectionCache = BackupCollection::createFromFiles(
             $this->disk,

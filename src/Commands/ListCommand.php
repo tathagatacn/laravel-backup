@@ -5,6 +5,7 @@ namespace Spatie\Backup\Commands;
 use Illuminate\Support\Collection;
 use Spatie\Backup\BackupDestination\Backup;
 use Spatie\Backup\Helpers\Format;
+use Spatie\Backup\Helpers\RightAlignedTableStyle;
 use Spatie\Backup\Tasks\Monitor\BackupDestinationStatus;
 use Spatie\Backup\Tasks\Monitor\BackupDestinationStatusFactory;
 
@@ -31,7 +32,10 @@ class ListCommand extends BaseCommand
             return $this->convertToRow($backupDestinationStatus);
         });
 
-        $this->table($headers, $rows);
+        $this->table($headers, $rows, 'default', [
+            4 => new RightAlignedTableStyle(),
+            6 => new RightAlignedTableStyle(),
+        ]);
 
         return $this;
     }

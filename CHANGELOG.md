@@ -2,6 +2,170 @@
 
 All notable changes to `laravel-backup` will be documented in this file.
 
+## 7.6.4 - 2021-08-11
+
+- avoid create full path folders when config has relative_path (#1365)
+
+## 7.6.3 - 2021-07-29
+
+- adds: exception to throw when flysystem returns false (#1348)
+
+## 7.6.2 - 2021-07-19
+
+- fix retrieving translation string (#1353)
+
+## 7.6.1 - 2021-07-13
+
+- fix Spanish Translations (#1350)
+
+## 7.6.0 - 2021-06-01
+
+- translate notification properties
+
+## 7.5.4 - 2021-05-28
+
+- fix Artisan::call() throws a SIGINT undefined error (#1309)
+
+## 7.5.3 - 2021-05-23
+
+- added Bangla translations (#1314)
+
+## 7.5.2 - 2021-04-21
+
+- avoid SIGINT on Windows (#1296)
+
+## 7.5.1 - 2021-04-15
+
+- fix for #1291 (Send mail notifications to multiple addresses failed)
+
+## 7.5.0 - 2021-04-15
+
+- add `DumpingDatabase` event (#1292)
+
+## 7.4.0 - 2021-04-09
+
+- add support for Discord notifications
+
+## 7.3.4 - 2021-04-05
+
+- delete incomplete backup when cancelling the backup command
+
+## 7.3.3 - 2021-03-31
+
+- update dependencies (spatie/db-dumper) (#1276)
+
+## 7.3.2 - 2021-03-30
+
+- update deps (#1275)
+
+## 7.3.1 - 2021-03-12
+
+- avoid exception when ZipArchive::EM_AES_256 is not available
+
+## 7.3.0 - 2021-03-04
+
+- encrypt backups (#1246)
+
+## 7.2.1 - 2021-01-28
+
+- fixed notification failure on unreachable disk (#1226)
+
+## 7.2.0 - 2021-01-25
+
+- use package service provider
+
+## 7.1.0 - 2021-01-15
+
+- merge features from v6 branch
+
+## 7.0.2 - 2020-12-21
+
+- fix events (#1167)
+
+## 7.0.1 - 2020-12-19
+
+- add support for Norwegian
+
+## 7.0.0 - 2020-12-16
+
+- clean up of all internals
+- drop support for PHP 7
+- drop support for anything below Laravel 8
+
+## 6.14.2 - 2020-12-27
+
+- add norwegian
+
+## 6.14.1 - 2020-12-16
+
+- fix exception messages
+
+## 6.14.0 - 2020-12-08
+
+- add option to add files to zip-file using relative path (#1158)
+
+## 6.13.1 - 2020-12-01
+
+- Update README.md, docs and comment in config file (#1154)
+
+## 6.13.0 - 2020-11-25
+
+- add support for PHP 8.0
+- drop support for Laravel 5.8
+
+## 6.12.0 - 2020-11-19
+
+- allow a `CleanupStrategy` to access its intended `BackupDestination` (#1149)
+
+## 6.11.6 - 2020-10-19
+
+- add funding section
+
+## 6.11.4 - 2020-09-30
+
+- add Portuguese translations
+
+## 6.11.3 - 2020-09-29
+
+- add Japanse translations
+
+## 6.11.2 - 2020-09-07
+
+- add support for Laravel 8
+
+## 6.11.1 - 2020-06-17
+
+- reduce number of filesystem calls for Backup `exists` and `date` (#1084)
+
+## 6.11.0 - 2020-06-15
+
+- avoid unreadable folders errors, can be set from config (#1081)
+
+## 6.10.0 - 2020-05-20
+
+- add support for the `unix_socket` database config option (#1072)
+
+## 6.9.0 - 2020-04-20
+
+- add right-aligned numbers in console output
+- don't resolve notifications from the IoC container, as per Laravel docs
+
+## 6.8.1 - 2020-03-11
+
+- added support to set execution timeout (#1046)
+
+## 6.8.0 - 2020-03-02
+
+- add support for Laravel 7
+
+## 6.7.8 - 2020-02-19
+
+- add Finnish localization (#1039)
+
+## 6.7.7 - 2020-01-26
+
+- fix MongoDB authentication connection name (#1025)
+
 ## 6.7.6 - 2019-12-12
 
 - empty directories are now being backed up (#1008)
@@ -29,7 +193,6 @@ All notable changes to `laravel-backup` will be documented in this file.
 ## 6.7.0 - 2019-10-16
 
 - handle database urls for database connections (#980)
->>>>>>> 1f3d26cad457083fc18889db96335c293b6290d4
 
 ## 6.6.1 - 2019-10-09
 

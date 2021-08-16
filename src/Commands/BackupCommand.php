@@ -9,10 +9,8 @@ use Spatie\Backup\Tasks\Backup\BackupJobFactory;
 
 class BackupCommand extends BaseCommand
 {
-    /** @var string */
-    protected $signature = 'backup:run {--filename=} {--only-db} {--db-name=*} {--only-files} {--only-to-disk=} {--disable-notifications}';
+    protected $signature = 'backup:run {--filename=} {--only-db} {--db-name=*} {--only-files} {--only-to-disk=} {--disable-notifications} {--timeout=}';
 
-    /** @var string */
     protected $description = 'Run the backup.';
 
     public function handle()
@@ -20,6 +18,10 @@ class BackupCommand extends BaseCommand
         consoleOutput()->comment('Starting backup...');
 
         $disableNotifications = $this->option('disable-notifications');
+
+        if ($this->option('timeout') && is_numeric($this->option('timeout'))) {
+            set_time_limit((int) $this->option('timeout'));
+        }
 
         try {
             $this->guardAgainstInvalidOptions();
@@ -49,6 +51,10 @@ class BackupCommand extends BaseCommand
                 $backupJob->disableNotifications();
             }
 
+            if (! $this->getSubscribedSignals()) {
+                $backupJob->disableSignals();
+            }
+
             $backupJob->run();
 
             consoleOutput()->comment('Backup completed!');
@@ -65,8 +71,14 @@ class BackupCommand extends BaseCommand
 
     protected function guardAgainstInvalidOptions()
     {
-        if ($this->option('only-db') && $this->option('only-files')) {
-            throw InvalidCommand::create('Cannot use `only-db` and `only-files` together');
+        if (! $this->option('only-db')) {
+            return;
         }
+
+        if (! $this->option('only-files')) {
+            return;
+        }
+
+        throw InvalidCommand::create('Cannot use `only-db` and `only-files` together');
     }
 }

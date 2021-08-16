@@ -5,20 +5,23 @@ namespace Spatie\Backup\Notifications\Notifications;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Messages\SlackAttachment;
 use Illuminate\Notifications\Messages\SlackMessage;
-use Spatie\Backup\Events\CleanupWasSuccessful as CleanupWasSuccessfulEvent;
+use Spatie\Backup\Events\HealthyBackupWasFound;
 use Spatie\Backup\Notifications\BaseNotification;
+use Spatie\Backup\Notifications\Channels\Discord\DiscordMessage;
 
-class CleanupWasSuccessful extends BaseNotification
+class HealthyBackupWasFoundNotification extends BaseNotification
 {
-    /** @var \Spatie\Backup\Events\CleanupWasSuccessful */
-    protected $event;
+    public function __construct(
+        public HealthyBackupWasFound $event,
+    ) {
+    }
 
     public function toMail(): MailMessage
     {
         $mailMessage = (new MailMessage)
             ->from(config('backup.notifications.mail.from.address', config('mail.from.address')), config('backup.notifications.mail.from.name', config('mail.from.name')))
-            ->subject(trans('backup::notifications.cleanup_successful_subject', ['application_name' => $this->applicationName()]))
-            ->line(trans('backup::notifications.cleanup_successful_body', ['application_name' => $this->applicationName(), 'disk_name' => $this->diskName()]));
+            ->subject(trans('backup::notifications.healthy_backup_found_subject', ['application_name' => $this->applicationName(), 'disk_name' => $this->diskName()]))
+            ->line(trans('backup::notifications.healthy_backup_found_body', ['application_name' => $this->applicationName()]));
 
         $this->backupDestinationProperties()->each(function ($value, $name) use ($mailMessage) {
             $mailMessage->line("{$name}: $value");
@@ -33,16 +36,21 @@ class CleanupWasSuccessful extends BaseNotification
             ->success()
             ->from(config('backup.notifications.slack.username'), config('backup.notifications.slack.icon'))
             ->to(config('backup.notifications.slack.channel'))
-            ->content(trans('backup::notifications.cleanup_successful_subject_title'))
+            ->content(trans('backup::notifications.healthy_backup_found_subject_title', ['application_name' => $this->applicationName()]))
             ->attachment(function (SlackAttachment $attachment) {
                 $attachment->fields($this->backupDestinationProperties()->toArray());
             });
     }
 
-    public function setEvent(CleanupWasSuccessfulEvent $event)
+    public function toDiscord(): DiscordMessage
     {
-        $this->event = $event;
-
-        return $this;
+        return (new DiscordMessage())
+            ->success()
+            ->from(config('backup.notifications.discord.username'), config('backup.notifications.discord.avatar_url'))
+            ->title(
+                trans('backup::notifications.healthy_backup_found_subject_title', [
+                'application_name' => $this->applicationName(),
+                ])
+            )->fields($this->backupDestinationProperties()->toArray());
     }
 }

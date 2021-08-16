@@ -2,50 +2,62 @@
 
 namespace Spatie\Backup;
 
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Notifications\ChannelManager;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Backup\Commands\BackupCommand;
 use Spatie\Backup\Commands\CleanupCommand;
 use Spatie\Backup\Commands\ListCommand;
 use Spatie\Backup\Commands\MonitorCommand;
+use Spatie\Backup\Events\BackupZipWasCreated;
 use Spatie\Backup\Helpers\ConsoleOutput;
+use Spatie\Backup\Listeners\EncryptBackupArchive;
+use Spatie\Backup\Notifications\Channels\Discord\DiscordChannel;
 use Spatie\Backup\Notifications\EventHandler;
 use Spatie\Backup\Tasks\Cleanup\CleanupStrategy;
+use Spatie\LaravelPackageTools\Package;
+use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-class BackupServiceProvider extends ServiceProvider
+class BackupServiceProvider extends PackageServiceProvider
 {
-    public function boot()
+    public function configurePackage(Package $package): void
     {
-        $this->publishes([
-            __DIR__.'/../config/backup.php' => config_path('backup.php'),
-        ], 'config');
-
-        $this->publishes([
-            __DIR__.'/../resources/lang' => "{$this->app['path.lang']}/vendor/backup",
-        ]);
-
-        $this->loadTranslationsFrom(__DIR__.'/../resources/lang/', 'backup');
+        $package
+            ->name('laravel-backup')
+            ->hasConfigFile()
+            ->hasTranslations()
+            ->hasCommands([
+                BackupCommand::class,
+                CleanupCommand::class,
+                ListCommand::class,
+                MonitorCommand::class,
+            ]);
     }
 
-    public function register()
+    public function packageBooted()
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/backup.php', 'backup');
+        if (EncryptBackupArchive::shouldEncrypt()) {
+            Event::listen(BackupZipWasCreated::class, EncryptBackupArchive::class);
+        }
+    }
 
+    public function packageRegistered()
+    {
         $this->app['events']->subscribe(EventHandler::class);
 
-        $this->app->bind('command.backup:run', BackupCommand::class);
-        $this->app->bind('command.backup:clean', CleanupCommand::class);
-        $this->app->bind('command.backup:list', ListCommand::class);
-        $this->app->bind('command.backup:monitor', MonitorCommand::class);
+        $this->app->singleton(ConsoleOutput::class);
 
         $this->app->bind(CleanupStrategy::class, config('backup.cleanup.strategy'));
 
-        $this->commands([
-            'command.backup:run',
-            'command.backup:clean',
-            'command.backup:list',
-            'command.backup:monitor',
-        ]);
+        $this->registerDiscordChannel();
+    }
 
-        $this->app->singleton(ConsoleOutput::class);
+    protected function registerDiscordChannel()
+    {
+        Notification::resolved(function (ChannelManager $service) {
+            $service->extend('discord', function ($app) {
+                return new DiscordChannel();
+            });
+        });
     }
 }
